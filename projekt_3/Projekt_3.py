@@ -15,13 +15,15 @@ print(60 * "-")
 # Import libraries and modules
 #==================================================================================
 import requests
+import argparse
+from typing import Optional, List
 from bs4 import BeautifulSoup as bs
 
 
 #==================================================================================
 # Global variables and constants
 #==================================================================================
-url = "https://www.volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=4&xnumnuts=3203"
+URL = "https://www.volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=4&xnumnuts=3203"
 
 
 
@@ -29,48 +31,58 @@ url = "https://www.volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=4&xnumnuts=3203"
 #==================================================================================
 # Function definitions:
 #==================================================================================
-def send_request_get(url: str) -> str:
+def load_page_source_code(url: str) -> Optional[str]:
     """
-    Return the server response to a GET request.
+    Sends a GET request to the page and returns its HTML content if successful.
+    Returns None if the request fails.
     """
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.text  
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  
+        return response.text
+    except requests.RequestException as e:
+        print(f"Error fetching the page: {e}")
+        return None 
+
+def parse_html(html_content: str) -> bs.BeautifulSoup:
+    """
+    Parses the HTML content using BeautifulSoup and returns the parsed object.
+    """
+    return bs.BeautifulSoup(html_content, features='html.parser')
+
+def find_all_links(soup: bs.BeautifulSoup) -> List[str]:
+    """
+    Finds all links with the attribute headers="t1sb1" in the parsed HTML content.
+    """
+    links = soup.find_all('a', href=True, headers="t1sb1")  
+    return [link['href'] for link in links]  
+
+def get_links(url: str) -> List[str]:
+    """
+    Fetches the HTML content of the page, parses it, and finds all matching links.
+    """
+    try:
+        html_content = load_page_source_code(url)
+        if not html_content:
+            raise ValueError("No content fetched from the provided URL.")
+    except Exception as e:
+        print(f"Error in get_links: {e}")
+        return []
     else:
-        print("Error loading page.")
-        return None  
-   
-
-
-def get_parsed_response(response: str) -> bs.BeautifulSoup:
+        soup = parse_html(html_content)
+        return find_all_links(soup)
+    
+def parse_arguments() -> str:
     """
-    Get a split response to a GET request.
+    Parses command-line arguments to get the URL.
+
+    Returns:
+    - str: The URL provided as a command-line argument.
     """
-    return bs.BeautifulSoup(response, features="html.parser")
-
-
-def vyber_tr_tagy(odpoved_serveru: bs4.BeautifulSoup) -> bs4.element.ResultSet:
-    """
-    Ze zdrojového kódu stránky vyber všechny tagy "tr".
-    """
-    return odpoved_serveru.find_all("tr")
-
-
-def rozdel_zahlavi_a_transakce(trs: bs4.element.ResultSet) -> tuple:
-    """
-    Vrať z tagů "tr" pouze záhlaví a informace ke všem transakcím.
-    """
-    zahlavi, *transakce = trs[2:]
-    zahlavi: list = zahlavi.get_text().splitlines()[1:]
-    return zahlavi, transakce
-
-
-if __name__ == "__main__":
-    url: str =  \
-        "https://ib.fio.cz/ib/transparent?a=2801322199&f=01.07.2023&t=03.07.2023"
-    odpoved = ziskej_parsovanou_odpoved(posli_pozadavek_get(url))
-    zahlavi, transakce = rozdel_zahlavi_a_transakce(vyber_tr_tagy(odpoved))
-    print(transakce)
+    parser = argparse.ArgumentParser(description="Scrape links from a specified webpage.")
+    parser.add_argument("url", type=str, help="The URL of the page to scrape.")
+    args = parser.parse_args()
+    return args.url
 
 
 
@@ -80,13 +92,16 @@ if __name__ == "__main__":
 
 
 
-def format_link(municipality):
-    return f"https://www.volby.cz/pls/ps2017nss/ps311?xjazyk=CZ&xkraj=4&xobec={municipality}&xvyber=3203"
 
 
-def browse_municipality():
-    for municipality in range(2017, 2022):
-        print(formatting_link(municipality))
+
+
+# def format_link(municipality):
+#   return f"https://www.volby.cz/pls/ps2017nss/ps311?xjazyk=CZ&xkraj=4&xobec={municipality}&xvyber=3203"
+
+
+#def browse_municipality():
+#       print(format_link(municipality))
 
 
 
@@ -95,4 +110,4 @@ def browse_municipality():
 # Main Program
 #==================================================================================
 if __name__ == "__main__":
-    browse_municipality()
+    
