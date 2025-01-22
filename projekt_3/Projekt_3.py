@@ -23,10 +23,7 @@ from bs4 import BeautifulSoup as bs
 #==================================================================================
 # Global variables and constants
 #==================================================================================
-URL = "https://www.volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=4&xnumnuts=3203"
-
-
-
+DEFAULT_URL = "https://www.volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=4&xnumnuts=3203"
 
 #==================================================================================
 # Function definitions:
@@ -44,17 +41,17 @@ def load_page_source_code(url: str) -> Optional[str]:
         print(f"Error fetching the page: {e}")
         return None 
 
-def parse_html(html_content: str) -> bs.BeautifulSoup:
+def parse_html(html_content: str) -> bs:
     """
     Parses the HTML content using BeautifulSoup and returns the parsed object.
     """
-    return bs.BeautifulSoup(html_content, features='html.parser')
+    return bs(html_content, features='html.parser')
 
-def find_all_links(soup: bs.BeautifulSoup) -> List[str]:
+def find_all_links(soup: bs) -> List[str]:
     """
-    Finds all links with the attribute headers="t1sb1" in the parsed HTML content.
+    Finds all links with the attribute headers="t1sa1 t1sb1" in the parsed HTML content.
     """
-    links = soup.find_all('a', href=True, headers="t1sb1")  
+    links = soup.find_all('a', href=True, headers="t1sa1 t1sb1")  
     return [link['href'] for link in links]  
 
 def get_links(url: str) -> List[str]:
@@ -80,34 +77,29 @@ def parse_arguments() -> str:
     - str: The URL provided as a command-line argument.
     """
     parser = argparse.ArgumentParser(description="Scrape links from a specified webpage.")
-    parser.add_argument("url", type=str, help="The URL of the page to scrape.")
+    parser.add_argument(
+        "url",
+        nargs="?",  # Argument je nepovinný
+        default=DEFAULT_URL,  # Výchozí hodnota, pokud není argument zadán
+        type=str,
+        help="The URL of the page to scrape (default is the predefined URL)."
+    )
     args = parser.parse_args()
     return args.url
-
-
-
-
-
-
-
-
-
-
-
-
-
-# def format_link(municipality):
-#   return f"https://www.volby.cz/pls/ps2017nss/ps311?xjazyk=CZ&xkraj=4&xobec={municipality}&xvyber=3203"
-
-
-#def browse_municipality():
-#       print(format_link(municipality))
-
-
 
 
 #==================================================================================
 # Main Program
 #==================================================================================
 if __name__ == "__main__":
-    
+    target_url = parse_arguments()
+
+    print(f"Scraping links from: {target_url}")
+    links = get_links(target_url)
+
+    if links:
+        print(f"Found {len(links)} links:")
+        for link in links:
+            print(link)
+    else:
+        print("No matching links found.")
