@@ -14,6 +14,7 @@ print(60 * "-")
 #==================================================================================
 # Import libraries and modules
 #==================================================================================
+import sys
 import requests
 import argparse
 from typing import Optional, List
@@ -28,7 +29,7 @@ DEFAULT_URL = "https://www.volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=4&xnumnut
 #==================================================================================
 # Function definitions:
 #==================================================================================
-def load_page_source_code(url: str) -> Optional[str]:
+def load_page_source_code(url: str) -> str:
     """
     Sends a GET request to the page and returns its HTML content if successful.
     Returns None if the request fails.
@@ -36,10 +37,11 @@ def load_page_source_code(url: str) -> Optional[str]:
     try:
         response = requests.get(url)
         response.raise_for_status()  
-        return response.text
     except requests.RequestException as e:
         print(f"Error fetching the page: {e}")
-        return None 
+        sys.exit(1)   
+    else:
+        return response.text
 
 def parse_html(html_content: str) -> bs:
     """
@@ -51,7 +53,7 @@ def find_all_links(soup: bs) -> List[str]:
     """
     Finds all <a> links within <td> elements with specific headers using CSS selectors.
     """
-    header_values = ["t1sa1 t1sb1", "t2sa1 t2sb1", "t3sa1 t3sb1"]
+    header_values = ["t1sa1 t1sb1", "t2sa1 t2sb1", "t3sa1 t3sb1", "t4sa1 t4sb1"]
     links = []
 
     for header in header_values:
@@ -64,16 +66,9 @@ def get_links(url: str) -> List[str]:
     """
     Fetches the HTML content of the page, parses it, and finds all matching links.
     """
-    try:
-        html_content = load_page_source_code(url)
-        if not html_content:
-            raise ValueError("No content fetched from the provided URL.")
-    except Exception as e:
-        print(f"Error in get_links: {e}")
-        return []
-    else:
-        soup = parse_html(html_content)
-        return find_all_links(soup)
+    html_content = load_page_source_code(url)
+    soup = parse_html(html_content)
+    return find_all_links(soup)
     
 def parse_arguments() -> str:
     """
