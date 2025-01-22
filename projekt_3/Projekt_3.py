@@ -49,10 +49,16 @@ def parse_html(html_content: str) -> bs:
 
 def find_all_links(soup: bs) -> List[str]:
     """
-    Finds all links with the attribute headers="t1sa1 t1sb1" in the parsed HTML content.
+    Finds all <a> links within <td> elements with specific headers using CSS selectors.
     """
-    links = soup.find_all('a', href=True, headers="t1sa1 t1sb1")  
-    return [link['href'] for link in links]  
+    header_values = ["t1sa1 t1sb1", "t2sa1 t2sb1", "t3sa1 t3sb1"]
+    links = []
+
+    for header in header_values:
+        found_links = soup.select(f'td[headers="{header}"] a[href]') 
+        links.extend([link['href'] for link in found_links])  
+    
+    return links 
 
 def get_links(url: str) -> List[str]:
     """
@@ -79,8 +85,8 @@ def parse_arguments() -> str:
     parser = argparse.ArgumentParser(description="Scrape links from a specified webpage.")
     parser.add_argument(
         "url",
-        nargs="?",  # Argument je nepovinný
-        default=DEFAULT_URL,  # Výchozí hodnota, pokud není argument zadán
+        nargs="?",  
+        default=DEFAULT_URL,  
         type=str,
         help="The URL of the page to scrape (default is the predefined URL)."
     )
