@@ -99,7 +99,7 @@ def extract_general_info(soup: bs) -> Dict:
     Extracts general information. (voters, envelopes, valid votes, and municipality name) 
     """
     municipality_name = "N/A"
-    municipality_header = soup.find("h3", text=lambda t: "Obec" in t)
+    municipality_header = soup.find("h3", string=lambda t: "Obec" in t)
     if municipality_header:
         municipality_name = municipality_header.text.replace("Obec: ", "").strip()
 
@@ -140,7 +140,8 @@ def extract_party_votes(soup: bs) -> Dict[str, int]:
                     party_votes[party_name] = int(votes)
                 else:
                     party_votes[party_name] = 0   
-
+    return party_votes
+    
 def save_to_csv(
     municipality_data: Dict,
     party_votes: Dict[str, int],
@@ -230,6 +231,7 @@ def main():
     Main function to scrape data from a given URL and save it to a CSV file.
     """
     # 1. Získání argumentů
+    print("arg", sys.argv)
     target_url, output_csv = parse_arguments()
     print(f"Scraping data from: {target_url}")
     print(f"Results will be saved in: {output_csv}")
@@ -264,7 +266,6 @@ def main():
         save_to_csv(municipality_data, party_votes, output_csv)
 
     print("✅ Data byla úspěšně zpracována a uložena.")
-
 
 #==================================================================================
 # Main Program
