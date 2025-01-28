@@ -16,11 +16,10 @@ print(60 * "-")
 #==================================================================================
 import csv
 import sys
-import requests
 import argparse
-from typing import List
+import requests
+from typing import List, Dict
 from bs4 import BeautifulSoup as bs
-
 
 #==================================================================================
 # Global variables and constants
@@ -79,21 +78,6 @@ def extract_town_code(link: str) -> str:
     if "obec=" in link:
         return link.split("obec=")[1].split("&")[0] 
     return "N/A"
-    
-def parse_arguments() -> str:
-    """
-    Parses command-line arguments to get the URL.
-    """
-    parser = argparse.ArgumentParser(description="Scrape links from a specified webpage.")
-    parser.add_argument(
-        "url",
-        nargs="?",  
-        default=DEFAULT_URL,  
-        type=str,
-        help="The URL of the page to scrape (default is the predefined URL)."
-    )
-    args = parser.parse_args()
-    return args.url
 
 def scrape_town_data(link: str, base_url: str) -> Dict:
     """
@@ -177,18 +161,66 @@ def save_to_csv(data: List[Dict], filename: str):
 
     print(f"Data byla uložena do souboru {filename}")
 
+def parse_arguments() -> tuple:
+    """
+    Parses command-line arguments to get the URL and output CSV file name.
+    If arguments are missing, prompts the user to re-run the script with proper inputs.
+    """
+    parser = argparse.ArgumentParser(
+        description="Scrape data from a specified webpage and save it to a CSV file."
+    )
+    parser.add_argument(
+        "url",
+        nargs="?",  # Volitelný argument
+        type=str,
+        help="The URL of the page to scrape.",
+    )
+    parser.add_argument(
+        "--output", "-o",
+        required=False,
+        type=str,
+        help="The name of the output CSV file.",
+    )
+    args = parser.parse_args()
+
+    # Kontrola argumentů
+    if not args.url or not args.output:
+        print("\n[ERROR] Missing required arguments!")
+        print("Please provide both the URL to scrape and the output CSV file name.")
+        print("\nUsage example:")
+        print("  python projekt_3.py <URL> --output <output_file.csv>\n")
+        sys.exit(1)  # Ukončí program
+
+    return args.url, args.output
+
 #==================================================================================
 # Main Program
 #==================================================================================
 if __name__ == "__main__":
-    target_url = parse_arguments()
+    target_url, output_csv = parse_arguments()
 
     print(f"Scraping links from: {target_url}")
     links = get_links(target_url)
 
     if links:
-        print(f"Found {len(links)} links:")
+        print(f"Found {len(links)} links. Scraping data...")
+        scraped_data = []
+
+        # Scrapování dat z jednotlivých odkazů
         for link in links:
-            print(link)
+            full_link = f"{BASE_URL}/{link}"  # Sestavení úplné URL
+            print(f"Processing: {full_link}")
+
+            town_data = scrape_town_data(link, BASE_URL)
+            if town_data:
+                scraped_data.append(town_data)
+
+        # Uložit data do CSV pouze pokud něco bylo nalezeno
+        if scraped_data:
+            print(f"Saving {len(scraped_data)} records to {output_csv}...")
+            save_to_csv(scraped_data, output_csv)
+            print(f"✅ CSV file '{output_csv}' successfully saved.")
+        else:
+            print("⚠️ No data extracted from the links.")
     else:
-        print("No matching links found.")
+        print("⚠️ No matching links found.")
