@@ -18,15 +18,14 @@ import csv
 import sys
 import argparse
 import requests
+import pandas as pd
 from typing import List, Dict
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup as bs
-print(sys.argv)
 
 #==================================================================================
 # Global variables and constants
 #==================================================================================
-DEFAULT_URL = "https://www.volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=4&xnumnuts=3203"
 BASE_URL = "https://www.volby.cz/pls/ps2017nss/"
 
 #==================================================================================
@@ -141,25 +140,26 @@ def extract_party_votes(soup: bs) -> Dict[str, int]:
                 else:
                     party_votes[party_name] = 0   
     return party_votes
-    
-def save_to_csv(
-    municipality_data: Dict,
-    party_votes: Dict[str, int],
-    filename: str
-):
-    """
-    Saves municipality data and party votes into a CSV file.
 
+def save_to_csv(all_data: List[Dict], filename: str):
+    """
+    Saves the scraped election data into a CSV file.
+    
     Columns:
     - kod obce
     - nazev obce
     - registrovani volici
     - vydane obalky
     - platne hlasy
-    - názvy všech stran
+    - jednotlivé strany jako sloupce (každá strana bude mít vlastní sloupec)
     """
-    # Získání názvů všech stran (ze slovníku party_votes)
-    all_parties = sorted(party_votes.keys())
+    # Seznam všech unikátních stran (napříč všemi obcemi)
+    all_parties = set()
+    for municipality_data, party_votes in all_data:
+        all_parties.update(party_votes.keys())
+
+    # Seřadíme názvy stran abecedně
+    all_parties = sorted(all_parties)
 
     # Hlavička CSV souboru
     header = [
@@ -168,7 +168,7 @@ def save_to_csv(
         "registrovani volici",
         "vydane obalky",
         "platne hlasy",
-    ] + all_parties
+    ] + all_parties  # Každá strana bude mít vlastní sloupec
 
     # Otevři CSV soubor a zapisuj data
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
@@ -177,21 +177,22 @@ def save_to_csv(
         # Zapiš hlavičku
         writer.writerow(header)
 
-        # Připrav data do řádku
-        row = [
-            municipality_data.get("municipality_code", "N/A"),  # Kod obce
-            municipality_data.get("municipality_name", "N/A"),  # Název obce
-            municipality_data.get("voters", "N/A"),            # Registrovaní voliči
-            municipality_data.get("envelopes", "N/A"),         # Vydané obálky
-            municipality_data.get("valid_votes", "N/A"),       # Platné hlasy
-        ]
+        # Zapiš data pro každou municipality
+        for municipality_data, party_votes in all_data:
+            row = [
+                municipality_data.get("municipality_code", "N/A"),  # Kód obce
+                municipality_data.get("municipality_name", "N/A"),  # Název obce
+                municipality_data.get("voters", "N/A"),             # Registrovaní voliči
+                municipality_data.get("envelopes", "N/A"),          # Vydané obálky
+                municipality_data.get("valid_votes", "N/A"),        # Platné hlasy
+            ]
 
-        # Přidej počty hlasů pro jednotlivé strany
-        for party in all_parties:
-            row.append(party_votes.get(party, 0))  # Hlasy pro danou stranu (0, pokud nejsou)
+            # Přidej hlasy pro každou stranu (pokud strana nemá hlasy, zapíše se "0")
+            for party in all_parties:
+                row.append(party_votes.get(party, 0))  # Hlasy pro danou stranu (0, pokud nejsou)
 
-        # Zapiš celý řádek
-        writer.writerow(row)
+            # Zapiš řádek do CSV
+            writer.writerow(row)
 
     print(f"✅ Data byla uložena do souboru {filename}")
 
@@ -262,8 +263,7 @@ def main():
 
     # 4. Zápis všech dat do CSV
     print(f"Saving data to {output_csv}...")
-    for municipality_data, party_votes in all_data:
-        save_to_csv(municipality_data, party_votes, output_csv)
+    save_to_csv(all_data, output_csv)  # ✅ Správné volání funkce
 
     print("✅ Data byla úspěšně zpracována a uložena.")
 
