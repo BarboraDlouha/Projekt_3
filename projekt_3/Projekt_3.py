@@ -31,6 +31,37 @@ BASE_URL = "https://www.volby.cz/pls/ps2017nss/"
 #==================================================================================
 # Function definitions:
 #==================================================================================
+def parse_arguments() -> tuple:
+    """
+    Parses command-line arguments to get the URL and output CSV file name.
+    If arguments are missing, prompts the user to re-run the script with proper inputs.
+    """
+    parser = argparse.ArgumentParser(
+        description="Scrape data from a specified webpage and save it to a CSV file."
+    )
+    parser.add_argument(
+        "url",  # První argument: URL
+        type=str,
+        help="The URL of the webpage to scrape."
+    )
+    parser.add_argument(
+        "output",  # Druhý argument: název CSV souboru
+        type=str,
+        help="The name of the output CSV file (e.g., results.csv)."
+    )
+    
+    # Zpracuj argumenty
+    args = parser.parse_args()
+    
+    # Validace argumentů (např. kontrola platné URL by mohla být přidána zde)
+    if not args.url.startswith("http"):
+        print("\n[ERROR] The URL must start with 'http' or 'https'.")
+        print("Usage example:")
+        print("  python projekt_3.py <URL> <output_file.csv>\n")
+        sys.exit(1)
+    
+    return args.url, args.output
+
 def load_page_source_code(url: str) -> str:
     """
     Sends a GET request to the page and returns its HTML content if successful.
@@ -196,48 +227,39 @@ def save_to_csv(all_data: List[Dict], filename: str):
 
     print(f"✅ Data byla uložena do souboru {filename}")
 
-def parse_arguments() -> tuple:
+def process_municipality(relative_link: str) -> tuple:
     """
-    Parses command-line arguments to get the URL and output CSV file name.
-    If arguments are missing, prompts the user to re-run the script with proper inputs.
+    Processes a single municipality: builds the full URL, fetches data, extracts general info
+    and party votes, and returns them in a structured format.
     """
-    parser = argparse.ArgumentParser(
-        description="Scrape data from a specified webpage and save it to a CSV file."
-    )
-    parser.add_argument(
-        "url",  # První argument: URL
-        type=str,
-        help="The URL of the webpage to scrape."
-    )
-    parser.add_argument(
-        "output",  # Druhý argument: název CSV souboru
-        type=str,
-        help="The name of the output CSV file (e.g., results.csv)."
-    )
-    
-    # Zpracuj argumenty
-    args = parser.parse_args()
-    
-    # Validace argumentů (např. kontrola platné URL by mohla být přidána zde)
-    if not args.url.startswith("http"):
-        print("\n[ERROR] The URL must start with 'http' or 'https'.")
-        print("Usage example:")
-        print("  python projekt_3.py <URL> <output_file.csv>\n")
-        sys.exit(1)
-    
-    return args.url, args.output
+    full_url = build_full_url(BASE_URL, relative_link)
+    soup = fetch_and_parse(full_url)
+
+    # Získání obecných informací o municipality
+    general_info = extract_general_info(soup)
+
+    # Pokud obec nemá data, přeskočíme ji
+    if not general_info:
+        print(f"⚠️ No data found for {relative_link}. Skipping...")
+        return None
+
+    # Přidáme kód obce
+    general_info["municipality_code"] = extract_town_code(full_url)
+
+    # Získání hlasů pro jednotlivé strany
+    party_votes = extract_party_votes(soup)
+
+    return general_info, party_votes
 
 def main():
     """
     Main function to scrape data from a given URL and save it to a CSV file.
     """
-    # 1. Získání argumentů
-    print("arg", sys.argv)
     target_url, output_csv = parse_arguments()
     print(f"Scraping data from: {target_url}")
     print(f"Results will be saved in: {output_csv}")
 
-    # 2. Načtení relativních odkazů na municipality
+    # Načtení odkazů na obce
     links = get_relative_links(target_url)
     if not links:
         print("⚠️ No municipalities found on the given page.")
@@ -245,25 +267,12 @@ def main():
 
     print(f"Found {len(links)} municipalities. Processing data...")
 
-    # 3. Zpracování dat pro jednotlivé municipality
-    all_data = []
-    for relative_link in links:
-        full_url = build_full_url(BASE_URL, relative_link)
-        soup = fetch_and_parse(full_url)
+    # Zpracování dat pro všechny municipality
+    all_data = [process_municipality(link) for link in links if process_municipality(link)]
 
-        # Získání obecných informací o municipality
-        general_info = extract_general_info(soup)
-        general_info["municipality_code"] = extract_town_code(full_url)  # Přidáme kód obce
-
-        # Získání hlasů pro jednotlivé strany
-        party_votes = extract_party_votes(soup)
-
-        # Přidání do seznamu všech dat
-        all_data.append((general_info, party_votes))
-
-    # 4. Zápis všech dat do CSV
+    # Uložíme výsledky do CSV
     print(f"Saving data to {output_csv}...")
-    save_to_csv(all_data, output_csv)  # ✅ Správné volání funkce
+    save_to_csv(all_data, output_csv)
 
     print("✅ Data byla úspěšně zpracována a uložena.")
 
