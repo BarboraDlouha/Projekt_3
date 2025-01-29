@@ -33,33 +33,22 @@ BASE_URL = "https://www.volby.cz/pls/ps2017nss/"
 #==================================================================================
 def parse_arguments() -> tuple:
     """
-    Parses command-line arguments to get the URL and output CSV file name.
-    If arguments are missing, prompts the user to re-run the script with proper inputs.
+    Parses command-line arguments, checks if the URL is reachable.
     """
     parser = argparse.ArgumentParser(
         description="Scrape data from a specified webpage and save it to a CSV file."
     )
-    parser.add_argument(
-        "url",  # První argument: URL
-        type=str,
-        help="The URL of the webpage to scrape."
-    )
-    parser.add_argument(
-        "output",  # Druhý argument: název CSV souboru
-        type=str,
-        help="The name of the output CSV file (e.g., results.csv)."
-    )
-    
-    # Zpracuj argumenty
+    parser.add_argument("url", type=str, help="The URL of the webpage to scrape.")
+    parser.add_argument("output", type=str, help="The name of the output CSV file.")
+
     args = parser.parse_args()
-    
-    # Validace argumentů (např. kontrola platné URL by mohla být přidána zde)
-    if not args.url.startswith("http"):
-        print("\n[ERROR] The URL must start with 'http' or 'https'.")
-        print("Usage example:")
-        print("  python projekt_3.py <URL> <output_file.csv>\n")
-        sys.exit(1)
-    
+
+    try:
+        response = requests.get(args.url, timeout=5)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        print(f"\n[ERROR] Cannot access the URL: {e}")
+        sys.exit(1) 
     return args.url, args.output
 
 def load_page_source_code(url: str) -> str:
@@ -67,14 +56,8 @@ def load_page_source_code(url: str) -> str:
     Sends a GET request to the page and returns its HTML content if successful.
     Returns None if the request fails.
     """
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  
-    except requests.RequestException as e:
-        print(f"Error fetching the page: {e}")
-        sys.exit(1)   
-    else:
-        return response.text
+    response = requests.get(url)
+    return response.text
 
 def parse_html(html_content: str) -> bs:
     """
@@ -152,7 +135,6 @@ def extract_general_info(soup: bs) -> Dict:
 def extract_party_votes(soup: bs) -> Dict[str, int]:
     """
     Extracts party names and their corresponding vote counts from the HTML.
-   
     """
     party_votes = {}
     
@@ -172,61 +154,6 @@ def extract_party_votes(soup: bs) -> Dict[str, int]:
                     party_votes[party_name] = 0   
     return party_votes
 
-def save_to_csv(all_data: List[Dict], filename: str):
-    """
-    Saves the scraped election data into a CSV file.
-    
-    Columns:
-    - kod obce
-    - nazev obce
-    - registrovani volici
-    - vydane obalky
-    - platne hlasy
-    - jednotlivé strany jako sloupce (každá strana bude mít vlastní sloupec)
-    """
-    # Seznam všech unikátních stran (napříč všemi obcemi)
-    all_parties = set()
-    for municipality_data, party_votes in all_data:
-        all_parties.update(party_votes.keys())
-
-    # Seřadíme názvy stran abecedně
-    all_parties = sorted(all_parties)
-
-    # Hlavička CSV souboru
-    header = [
-        "kod obce",
-        "nazev obce",
-        "registrovani volici",
-        "vydane obalky",
-        "platne hlasy",
-    ] + all_parties  # Každá strana bude mít vlastní sloupec
-
-    # Otevři CSV soubor a zapisuj data
-    with open(filename, mode="w", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
-
-        # Zapiš hlavičku
-        writer.writerow(header)
-
-        # Zapiš data pro každou municipality
-        for municipality_data, party_votes in all_data:
-            row = [
-                municipality_data.get("municipality_code", "N/A"),  # Kód obce
-                municipality_data.get("municipality_name", "N/A"),  # Název obce
-                municipality_data.get("voters", "N/A"),             # Registrovaní voliči
-                municipality_data.get("envelopes", "N/A"),          # Vydané obálky
-                municipality_data.get("valid_votes", "N/A"),        # Platné hlasy
-            ]
-
-            # Přidej hlasy pro každou stranu (pokud strana nemá hlasy, zapíše se "0")
-            for party in all_parties:
-                row.append(party_votes.get(party, 0))  # Hlasy pro danou stranu (0, pokud nejsou)
-
-            # Zapiš řádek do CSV
-            writer.writerow(row)
-
-    print(f"✅ Data byla uložena do souboru {filename}")
-
 def process_municipality(relative_link: str) -> tuple:
     """
     Processes a single municipality: builds the full URL, fetches data, extracts general info
@@ -235,31 +162,77 @@ def process_municipality(relative_link: str) -> tuple:
     full_url = build_full_url(BASE_URL, relative_link)
     soup = fetch_and_parse(full_url)
 
-    # Získání obecných informací o municipality
     general_info = extract_general_info(soup)
 
-    # Pokud obec nemá data, přeskočíme ji
     if not general_info:
         print(f"⚠️ No data found for {relative_link}. Skipping...")
         return None
 
-    # Přidáme kód obce
     general_info["municipality_code"] = extract_town_code(full_url)
 
-    # Získání hlasů pro jednotlivé strany
     party_votes = extract_party_votes(soup)
 
     return general_info, party_votes
+
+def save_to_csv(all_data: List[Dict], filename: str):
+    """
+    Saves the scraped election data into a CSV file.
+    
+    Columns:
+    - municipality code
+    - municipality name
+    - registered voters
+    - issued envelopes
+    - valid votes
+    - individual parties as columns (each party will have its own column)
+    """
+    all_parties = set()
+    for municipality_data, party_votes in all_data:
+        all_parties.update(party_votes.keys())
+
+    all_parties = sorted(all_parties)
+
+    header = [
+        "municipality code",
+        "municipality name",
+        "registered voters",
+        "issued envelopes",
+        "valid votes",
+    ] + all_parties
+
+    with open(filename, mode="w", newline="", encoding="utf-8-sig") as file:
+        writer = csv.writer(file, delimiter=";")
+
+        writer.writerow(header)
+
+        for municipality_data, party_votes in all_data:
+            row = [
+                municipality_data.get("municipality_code", "N/A"),
+                municipality_data.get("municipality_name", "N/A"),
+                int(str(municipality_data.get("voters", "0").replace(" ", "").replace("\xa0", ""))),  
+                int(str(municipality_data.get("envelopes", "0").replace(" ", "").replace("\xa0", ""))),  
+                int(str(municipality_data.get("valid_votes", "0").replace(" ", "").replace("\xa0", ""))),  
+            ]
+
+            for party in all_parties:
+                row.append(int(str(party_votes.get(party, "0")).replace(" ", "").replace("\xa0", "")))
+
+            writer.writerow(row)
+
+    print(f"✅ Data byla uložena do souboru {filename}")
+
+    
 
 def main():
     """
     Main function to scrape data from a given URL and save it to a CSV file.
     """
+    # Getting the required arguments from the user
     target_url, output_csv = parse_arguments()
     print(f"Scraping data from: {target_url}")
     print(f"Results will be saved in: {output_csv}")
 
-    # Načtení odkazů na obce
+    # Loading links to municipalities
     links = get_relative_links(target_url)
     if not links:
         print("⚠️ No municipalities found on the given page.")
@@ -267,10 +240,10 @@ def main():
 
     print(f"Found {len(links)} municipalities. Processing data...")
 
-    # Zpracování dat pro všechny municipality
+    # Data processing for all municipalities
     all_data = [process_municipality(link) for link in links if process_municipality(link)]
 
-    # Uložíme výsledky do CSV
+    # Saving data to a csv file
     print(f"Saving data to {output_csv}...")
     save_to_csv(all_data, output_csv)
 
