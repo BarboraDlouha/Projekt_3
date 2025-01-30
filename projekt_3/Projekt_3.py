@@ -18,7 +18,6 @@ import csv
 import sys
 import argparse
 import requests
-import pandas as pd
 from typing import List, Dict
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup as bs
