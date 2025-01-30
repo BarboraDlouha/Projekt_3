@@ -56,4 +56,3 @@ Program vygeneruje soubor **CSV**, který obsahuje tabulková data. Strany jsou 
 
 **Autor:** Barbora Dlouhá**Email:** [Barbora-Dlouha@seznam.cz](mailto\:Barbora-Dlouha@seznam.cz)
 
-d
