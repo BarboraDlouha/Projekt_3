@@ -35,7 +35,7 @@ def parse_arguments() -> tuple:
     Parses command-line arguments, checks if the URL is reachable.
     """
     parser = argparse.ArgumentParser(
-        description="Scrape data from a specified webpage and save it to a CSV file."
+        description="Parses command-line arguments for scraping an election results page."
     )
     parser.add_argument("url", type=str, help="The URL of the webpage to scrape.")
     parser.add_argument("output", type=str, help="The name of the output CSV file.")
@@ -52,8 +52,7 @@ def parse_arguments() -> tuple:
 
 def load_page_source_code(url: str) -> str:
     """
-    Sends a GET request to the page and returns its HTML content if successful.
-    Returns None if the request fails.
+    Sends a GET request to the page and returns its HTML content.
     """
     response = requests.get(url)
     return response.text
@@ -163,10 +162,6 @@ def process_municipality(relative_link: str) -> tuple:
 
     general_info = extract_general_info(soup)
 
-    if not general_info:
-        print(f"⚠️ No data found for {relative_link}. Skipping...")
-        return None
-
     general_info["municipality_code"] = extract_town_code(full_url)
 
     party_votes = extract_party_votes(soup)
@@ -218,10 +213,6 @@ def save_to_csv(all_data: List[Dict], filename: str):
 
             writer.writerow(row)
 
-    print(f"✅ Data byla uložena do souboru {filename}")
-
-    
-
 def main():
     """
     Main function to scrape data from a given URL and save it to a CSV file.
@@ -246,7 +237,7 @@ def main():
     print(f"Saving data to {output_csv}...")
     save_to_csv(all_data, output_csv)
 
-    print("✅ Data byla úspěšně zpracována a uložena.")
+    print("✅Data has been successfully saved to a file.")
 
 #==================================================================================
 # Main Program

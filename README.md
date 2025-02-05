@@ -11,20 +11,29 @@ Tento projekt slouží k automatickému stahování a analýze volebních výsle
   ```bash
   pip install -r requirements.txt
   ```
-
+  
 ---
 
 ## 🚀 Jak spustit
 
-Program se spouští z terminálu a vyžaduje dva parametry:
+1️⃣ **Naklonuj projekt z GitHubu**  
+```bash
+git clone https://github.com/tvoje-jmeno/projekt_3.git
+cd projekt_3
+```
 
-1. **URL** s volebními daty
-2. **Název výstupního CSV souboru**
+2️⃣ **Nainstaluj požadované knihovny**  
+```bash
+pip install -r requirements.txt
+```
 
-Příkaz pro spuštění:
+3️⃣ **Spusť skript s argumenty**  
+
+- **URL s volebními daty** (např. `https://www.volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=4&xnumnuts=3203`)
+- **Název výstupního CSV souboru** (např. `results_Pilsen_city.csv`)
 
 ```bash
-python projekt_3.py "https://www.volby.cz/pls/ps2017nss/..." --output vysledky.csv
+python projekt_3.py "https://www.volby.cz/pls/ps2017nss/ps32?xjazyk=CZ&xkraj=4&xnumnuts=3203" results_Pilsen_city.csv
 ```
 
 ---
@@ -42,17 +51,10 @@ Program vygeneruje soubor **CSV**, který obsahuje tabulková data. Strany jsou 
 
 ---
 
-## 🛠 Možné problémy a jejich řešení
+## 👮️‍♂️ Autor
 
-| Problém                                     | Řešení                                                                             |
-| ------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Program nevygeneroval žádná data            | Ověřte, že jste zadali správné URL s volebními daty.                               |
-| CSV se nezobrazuje správně v Excelu         | Použijte UTF-8-SIG, který je už v projektu nastaven.                               |
-| Chyba `IndexError: list index out of range` | Struktura tabulky se mohla změnit, ujistěte se, že selektory odpovídají HTML kódu. |
+**Autor:** Barbora Dlouhá  
+**Email:** [Barbora-Dlouha@seznam.cz](mailto\:Barbora-Dlouha@seznam.cz)
 
----
 
-## 📩 Kontakt
-
-**Autor:** Barbora Dlouhá**Email:** [Barbora-Dlouha@seznam.cz](mailto\:Barbora-Dlouha@seznam.cz)
 
